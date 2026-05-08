@@ -241,6 +241,49 @@ class TestScenario6_DataPersistence:
         assert loaded.status == OrderStatus.RESERVED
 
 
+class TestScenario7_ConfirmedReservedShortage:
+    """시나리오 7: CONFIRMED 선점 수량 고려한 shortage 계산 — 출고 성공 검증."""
+
+    def test_second_order_releaseable_after_first_confirmed_order_released(self, tmp_path):
+        """CONFIRMED 선점이 있을 때 PRODUCING으로 간 주문이 생산 완료 후 정상 출고되어야 한다.
+
+        버그 시나리오:
+        1. 재고 50, o1=30 승인 → CONFIRMED (선점 30)
+        2. o2=30 승인 → PRODUCING (가용 20 < 30)
+        3. complete_production(o2) → shortage 미계산으로 actual_qty=0 → 재고 그대로
+        4. o1 출고 → 재고 20
+        5. o2 출고 시도 → 재고 20 - 30 = -10 → ValueError 발생 (버그)
+
+        수정 후 기대:
+        3. complete_production(o2) → shortage 올바르게 계산 → actual_qty > 0 → 재고 증가
+        5. o2 출고 성공
+        """
+        from model.order import OrderStatus
+        sample_svc, order_svc, prod_svc, release_svc = make_all(tmp_path)
+
+        sample_svc.register_sample("S001", "시료A", 30.0, 0.92, 50)
+
+        # o1=30 CONFIRMED
+        o1 = order_svc.place_order("S001", "고객A", 30)
+        r1 = order_svc.approve_order(o1.order_id)
+        assert r1.status == OrderStatus.CONFIRMED
+
+        # o2=30 PRODUCING (가용 재고 50-30=20 < 30)
+        o2 = order_svc.place_order("S001", "고객B", 30)
+        r2 = order_svc.approve_order(o2.order_id)
+        assert r2.status == OrderStatus.PRODUCING
+
+        # 생산 완료 — CONFIRMED 선점을 고려한 shortage로 실제 재고 증가 필요
+        prod_svc.complete_production(o2.order_id)
+
+        # o1 출고
+        release_svc.release_order(o1.order_id)
+
+        # o2 출고 — 재고가 충분히 증가해야 성공
+        released = release_svc.release_order(o2.order_id)
+        assert released.status == OrderStatus.RELEASE
+
+
 class TestAppBootstrap:
     """Phase 5: app.py + main.py 진입점 테스트."""
 

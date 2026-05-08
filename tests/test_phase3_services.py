@@ -235,6 +235,40 @@ class TestProductionService:
         assert len(waiting) == 1
         assert waiting[0].order_id == o2.order_id
 
+    def test_production_shortage_accounts_for_confirmed_reserved_stock(self, tmp_path):
+        """CONFIRMED 선점 수량을 고려하여 shortage를 계산해야 한다.
+
+        재고 50, o1=30 CONFIRMED 선점 상태에서 o2=30이 PRODUCING으로 전환될 때
+        실질 가용 재고는 20(=50-30)이므로 shortage=30 (=주문량 - 가용 재고 아님, 주문량 전체)이
+        아니라 shortage = max(0, 30 - (50 - 30)) = 10이 아닌,
+        실질적으로 출고 시점에 재고가 부족하지 않도록 충분히 생산해야 한다.
+
+        핵심 검증: complete_production 후 재고가 실제로 증가해야 함 (actual_qty > 0).
+        shortage = 0이면 actual_qty = 0 이 되어 재고가 늘지 않고 출고 시 ValueError가 발생한다.
+        """
+        order_svc, sample_svc, prod_svc = self._make_services(tmp_path)
+        sample_svc.register_sample("S001", "시료A", 30.0, 0.92, 50)
+
+        # o1=30 CONFIRMED — 재고 50 선점
+        o1 = order_svc.place_order("S001", "고객A", 30)
+        order_svc.approve_order(o1.order_id)  # 재고 50 >= 30 → CONFIRMED
+
+        # o2=30 PRODUCING — 실질 가용 재고 50-30=20 < 30
+        o2 = order_svc.place_order("S001", "고객B", 30)
+        r2 = order_svc.approve_order(o2.order_id)
+        assert r2.status.value == "PRODUCING"
+
+        stock_before = make_sample_repo(tmp_path).find_by_id("S001").stock
+
+        prod_svc.complete_production(o2.order_id)
+
+        stock_after = make_sample_repo(tmp_path).find_by_id("S001").stock
+        # CONFIRMED o1=30이 선점 중이므로 shortage > 0 이어야 하고 재고가 늘어야 함
+        assert stock_after > stock_before, (
+            "CONFIRMED 선점 수량을 고려한 shortage 계산이 필요합니다. "
+            f"재고 변화 없음: before={stock_before}, after={stock_after}"
+        )
+
 
 # ─── ReleaseService ────────────────────────────────────────────────
 

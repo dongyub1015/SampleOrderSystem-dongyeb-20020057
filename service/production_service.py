@@ -56,7 +56,15 @@ class ProductionService:
     def create_production_job(self, order: Order) -> ProductionJob:
         """주문에 대한 생산 작업 생성 및 큐 등록."""
         sample = self._sample_repo.find_by_id(order.sample_id)
-        shortage = max(0, order.quantity - sample.stock)
+
+        # CONFIRMED 상태 주문의 선점 수량을 제외한 실질 가용 재고로 부족분 계산
+        # approve_order와 동일한 기준을 사용해야 출고 시 재고 음수를 방지할 수 있음
+        confirmed = self._order_repo.find_by_status(OrderStatus.CONFIRMED)
+        confirmed_reserved = sum(
+            o.quantity for o in confirmed if o.sample_id == order.sample_id
+        )
+        available_stock = sample.stock - confirmed_reserved
+        shortage = max(0, order.quantity - available_stock)
         actual_qty = self.calculate_actual_qty(shortage, sample.yield_rate)
         total_time_min = self.calculate_total_time(sample.avg_production_time, actual_qty)
 
