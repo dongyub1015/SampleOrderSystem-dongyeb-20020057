@@ -16,7 +16,7 @@
 ```
 SampleOrderSystem/
 ├── main.py                          # 진입점 (App().run() 한 줄)
-├── app.py                           # DI Root: 저장소→서비스→컨트롤러 생성·주입
+├── app.py                           # DI Root: 저장소→서비스→뷰→컨트롤러 생성·주입
 ├── PRD.md
 ├── PLAN.md
 ├── CLAUDE.md
@@ -133,7 +133,7 @@ SampleOrderSystem/
 ### Phase 5: 통합 및 검증
 **목표:** 전체 흐름 연결 및 엣지 케이스 확인
 
-- [ ] `app.py` — 저장소·서비스·컨트롤러 조립 및 DI
+- [ ] `app.py` — 저장소·서비스·뷰·컨트롤러 조립 및 DI
 - [ ] `main.py` — `App().run()` 한 줄
 - [ ] 시나리오 검증:
   - 시료 등록 → 주문 접수 → 재고 충분 승인 → 출고
