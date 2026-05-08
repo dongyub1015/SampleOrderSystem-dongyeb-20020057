@@ -10,9 +10,12 @@ class ConsoleView:
     def print_separator(self) -> None:
         print("─" * self.WIDTH)
 
-    def print_title(self) -> None:
+    def print_title(self, title: str = "") -> None:
         print("=" * self.WIDTH)
-        print("   반도체 시료 생산주문관리 시스템")
+        if title:
+            print(f"  {title}")
+        else:
+            print("   반도체 시료 생산주문관리 시스템")
         print("=" * self.WIDTH)
 
     def print_success(self, message: str) -> None:
