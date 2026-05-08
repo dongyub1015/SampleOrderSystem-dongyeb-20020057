@@ -96,23 +96,28 @@ class ProductionJob:
 
 ---
 
-## 5. 인메모리 저장소 구조
+## 5. 저장소 구조 (JsonDataStore 기반)
+
+각 저장소는 `DataPersistence-dongyeb-20020057`의 `JsonDataStore`를 래핑한다.  
+엔티티별로 별도 JSON 파일을 사용한다: `data/samples.json`, `data/orders.json`, `data/production_jobs.json`
 
 ### SampleRepository
 ```python
-_samples: dict[str, Sample]   # key: sample.id
+_store: JsonDataStore  # data/samples.json
+# create / read / read_all / update / delete 위임
 ```
 
 ### OrderRepository
 ```python
-_orders: dict[str, Order]     # key: order.order_id
-_daily_counter: dict[str, int] # key: "YYYYMMDD", value: 마지막 일련번호
+_store: JsonDataStore          # data/orders.json
+_daily_counter: dict[str, int] # key: "YYYYMMDD", value: 마지막 일련번호 (메모리 캐시)
 ```
 
 ### ProductionRepository
 ```python
-_running: ProductionJob | None    # 현재 생산 중인 작업
-_queue: deque[ProductionJob]      # 대기 큐 (FIFO)
+_store: JsonDataStore             # data/production_jobs.json
+# is_running=True 레코드가 현재 실행 중인 작업
+# is_running=False 레코드가 대기 큐 (enqueued_at ASC 정렬 = FIFO)
 ```
 
 ---

@@ -111,6 +111,7 @@
         생산 완료 시 WAITING[0]이 RUNNING으로 승격
 ```
 
-- 한 번에 하나의 `ProductionJob`만 `RUNNING` 상태
-- 생산 완료 후 자동으로 큐의 다음 작업 시작
+- 한 번에 하나의 `ProductionJob`만 `is_running=True` 상태
+- 생산 완료 후 자동으로 큐의 다음 작업 시작 (`enqueued_at` ASC 정렬)
 - 대기 중 작업의 `estimated_finish`는 앞선 작업들의 `total_time_min` 합산으로 계산
+- 동시 주문 처리는 순차 처리로 가정 — 재고 잠금(reserved_stock) 메커니즘 불필요
