@@ -76,6 +76,7 @@
   2. `Order.updated_at = now()`
   3. `Sample.stock += actual_qty` (생산된 수량 재고 반영)
   4. `ProductionJob` 완료 처리 (큐에서 제거, 다음 작업 시작)
+- **불변식:** `actual_qty = ceil(shortage / (yield * 0.9)) >= shortage`이므로, 생산 완료 후 `stock >= quantity`가 보장된다. CONFIRMED → RELEASE 출고 시 재고 부족 상황은 발생하지 않는다.
 
 ### 3.5 CONFIRMED → RELEASE
 - **트리거:** 담당자가 출고 처리 실행
