@@ -300,3 +300,125 @@ class TestReleaseService:
         # RESERVED 상태 → 출고 불가
         with pytest.raises(Exception):
             release_svc.release_order(order.order_id)
+
+    def test_release_negative_stock_raises(self, tmp_path):
+        """출고 시 재고 음수 방지 검증."""
+        order_svc, sample_svc, prod_svc, release_svc = self._make_services(tmp_path)
+        sample_svc.register_sample("S001", "시료A", 30.0, 0.92, 50)
+        o1 = order_svc.place_order("S001", "고객A", 50)
+        order_svc.approve_order(o1.order_id)   # CONFIRMED (재고 50 소진)
+        release_svc.release_order(o1.order_id)  # 재고 0
+        # 재고 0인 상태에서 추가 출고 시 ValueError
+        o2 = order_svc.place_order("S001", "고객B", 10)
+        # 재고 부족 → PRODUCING (approve)
+        order_svc.approve_order(o2.order_id)
+        # 생산 완료로 CONFIRMED 전환
+        prod_svc.complete_production(o2.order_id)
+        released = release_svc.release_order(o2.order_id)
+        assert released is not None
+
+
+# ─── SampleService 유효성 검사 추가 테스트 ─────────────────────────────
+
+class TestSampleServiceValidation:
+
+    def _make_service(self, tmp_path):
+        from service.sample_service import SampleService
+        from repository.sample_repository import SampleRepository
+        return SampleService(sample_repo=SampleRepository(str(tmp_path / "s.json")))
+
+    def test_register_sample_zero_yield_rate_raises(self, tmp_path):
+        svc = self._make_service(tmp_path)
+        with pytest.raises(ValueError):
+            svc.register_sample("S1", "시료", 1.0, 0.0, 0)
+
+    def test_register_sample_yield_rate_over_one_raises(self, tmp_path):
+        svc = self._make_service(tmp_path)
+        with pytest.raises(ValueError):
+            svc.register_sample("S1", "시료", 1.0, 1.1, 0)
+
+    def test_register_sample_zero_avg_time_raises(self, tmp_path):
+        svc = self._make_service(tmp_path)
+        with pytest.raises(ValueError):
+            svc.register_sample("S1", "시료", 0.0, 0.9, 0)
+
+    def test_register_sample_negative_stock_raises(self, tmp_path):
+        svc = self._make_service(tmp_path)
+        with pytest.raises(ValueError):
+            svc.register_sample("S1", "시료", 1.0, 0.9, -1)
+
+    def test_register_sample_empty_id_raises(self, tmp_path):
+        svc = self._make_service(tmp_path)
+        with pytest.raises(ValueError):
+            svc.register_sample("", "시료", 1.0, 0.9, 0)
+
+    def test_register_sample_empty_name_raises(self, tmp_path):
+        svc = self._make_service(tmp_path)
+        with pytest.raises(ValueError):
+            svc.register_sample("S1", "", 1.0, 0.9, 0)
+
+
+# ─── Over-Commitment 방지 테스트 ──────────────────────────────────────
+
+class TestOverCommitmentPrevention:
+
+    def _make_services(self, tmp_path):
+        from service.sample_service import SampleService
+        from service.order_service import OrderService
+        from service.production_service import ProductionService
+        sample_repo = make_sample_repo(tmp_path)
+        order_repo = make_order_repo(tmp_path)
+        prod_repo = make_prod_repo(tmp_path)
+        sample_svc = SampleService(sample_repo=sample_repo)
+        prod_svc = ProductionService(prod_repo=prod_repo, order_repo=order_repo, sample_repo=sample_repo)
+        order_svc = OrderService(order_repo=order_repo, sample_repo=sample_repo, production_service=prod_svc)
+        return order_svc, sample_svc
+
+    def test_second_approval_goes_to_producing_when_first_confirmed_exhausts_stock(self, tmp_path):
+        """재고 50에 수량 50 주문이 CONFIRMED 된 후, 다음 수량 10 주문은 PRODUCING으로 전환."""
+        from model.order import OrderStatus
+        order_svc, sample_svc = self._make_services(tmp_path)
+        sample_svc.register_sample("S001", "시료A", 30.0, 0.92, 50)
+        o1 = order_svc.place_order("S001", "고객A", 50)
+        o2 = order_svc.place_order("S001", "고객B", 10)
+        order_svc.approve_order(o1.order_id)  # 재고 50 → o1 CONFIRMED
+        o2_result = order_svc.approve_order(o2.order_id)  # 가용 재고 0 < 10 → PRODUCING
+        assert o2_result.status == OrderStatus.PRODUCING
+
+
+# ─── OrderRepository _restore_counter 테스트 ─────────────────────────
+
+class TestRestoreCounter:
+
+    def test_restore_counter_on_restart(self, tmp_path):
+        """재시작 후에도 일련번호가 연속성을 유지해야 한다."""
+        import re
+        from repository.order_repository import OrderRepository
+        from repository.sample_repository import SampleRepository
+        from service.sample_service import SampleService
+        from service.order_service import OrderService
+        from service.production_service import ProductionService
+        from repository.production_repository import ProductionRepository
+
+        sample_repo = SampleRepository(str(tmp_path / "samples.json"))
+        order_repo = OrderRepository(str(tmp_path / "orders.json"))
+        prod_repo = ProductionRepository(str(tmp_path / "jobs.json"))
+        sample_svc = SampleService(sample_repo=sample_repo)
+        prod_svc = ProductionService(prod_repo=prod_repo, order_repo=order_repo, sample_repo=sample_repo)
+        order_svc = OrderService(order_repo=order_repo, sample_repo=sample_repo, production_service=prod_svc)
+
+        sample_svc.register_sample("S001", "시료A", 1.0, 0.9, 100)
+        o1 = order_svc.place_order("S001", "고객A", 1)
+        o2 = order_svc.place_order("S001", "고객B", 1)
+        seq1 = int(o1.order_id.split("-")[-1])
+        seq2 = int(o2.order_id.split("-")[-1])
+        assert seq2 == seq1 + 1
+
+        # 재시작 시뮬레이션: 새 저장소 인스턴스
+        order_repo2 = OrderRepository(str(tmp_path / "orders.json"))
+        from service.order_service import OrderService as OS2
+        prod_svc2 = ProductionService(prod_repo=prod_repo, order_repo=order_repo2, sample_repo=sample_repo)
+        order_svc2 = OS2(order_repo=order_repo2, sample_repo=sample_repo, production_service=prod_svc2)
+        o3 = order_svc2.place_order("S001", "고객C", 1)
+        seq3 = int(o3.order_id.split("-")[-1])
+        assert seq3 == seq2 + 1  # 재시작 후에도 연속

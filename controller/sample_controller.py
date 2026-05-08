@@ -26,7 +26,7 @@ class SampleController:
                 case "0":
                     break
                 case _:
-                    self._view._console.print_error("올바른 메뉴를 선택하세요.")
+                    self._view.print_error("올바른 메뉴를 선택하세요.")
 
     def register_sample(self) -> None:
         self._view.print_sample_register_prompt()
@@ -37,15 +37,15 @@ class SampleController:
             yield_rate = float(input("수율 (0~1) > ").strip())
             stock = int(input("현재 재고 (ea) > ").strip())
         except ValueError:
-            self._view._console.print_error("숫자를 올바르게 입력하세요.")
+            self._view.print_error("숫자를 올바르게 입력하세요.")
             return
         try:
             sample = self._svc.register_sample(sample_id, name, avg_time, yield_rate, stock)
             self._view.print_sample_registered(sample)
         except DuplicateKeyError as e:
-            self._view._console.print_error(f"이미 존재하는 시료 ID입니다: {e.record_id}")
+            self._view.print_error(f"이미 존재하는 시료 ID입니다: {e.record_id}")
         except Exception as e:
-            self._view._console.print_error(str(e))
+            self._view.print_error(str(e))
 
     def list_samples(self) -> None:
         samples = self._svc.list_samples()

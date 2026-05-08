@@ -34,13 +34,14 @@ class ProductionService:
         """총 생산 시간 = 평균 생산시간 * 실 생산량."""
         return avg_production_time * actual_qty
 
-    def _calculate_estimated_finish(self, total_time_min: float, now: datetime) -> datetime:
+    def _calculate_estimated_finish(self, total_time_min: float, now: datetime, running=None) -> datetime:
         """새 작업의 예상 완료 시각 계산.
 
         실행 중 작업이 없으면 now + own_time.
         있으면 running.estimated_finish + 대기 중 작업 합산 + own_time.
         """
-        running = self._prod_repo.find_running()
+        if running is None:
+            running = self._prod_repo.find_running()
         waiting = self._prod_repo.find_waiting()
 
         if running is None:
@@ -60,8 +61,9 @@ class ProductionService:
         total_time_min = self.calculate_total_time(sample.avg_production_time, actual_qty)
 
         now = datetime.now()
-        is_first = self._prod_repo.find_running() is None
-        estimated_finish = self._calculate_estimated_finish(total_time_min, now)
+        running = self._prod_repo.find_running()
+        is_first = running is None
+        estimated_finish = self._calculate_estimated_finish(total_time_min, now, running)
 
         job = ProductionJob(
             job_id=f"JOB-{uuid.uuid4().hex[:8].upper()}",

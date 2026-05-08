@@ -21,6 +21,8 @@ class ProductionController:
             choice = input("선택 > ").strip().upper()
             if choice == "C":
                 self._complete_production(job)
+            elif choice != "0":
+                self._view.print_error("C 또는 0을 입력하세요.")
         else:
             input("  [Enter] 메인 메뉴로 > ")
 

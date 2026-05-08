@@ -39,7 +39,5 @@ class ReleaseService:
             )
         self._sample_repo.update_stock(order.sample_id, new_stock)
 
-        # 상태 변경 및 출고 시각 기록
-        now = datetime.now()
-        self._order_repo.update_status(order_id, OrderStatus.RELEASE)
-        return self._order_repo.update_released_at(order_id, now)
+        # 상태 변경 + 출고 시각 기록 (단일 원자적 쓰기)
+        return self._order_repo.release(order_id, datetime.now())

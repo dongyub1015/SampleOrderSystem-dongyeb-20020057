@@ -18,6 +18,10 @@ class SampleService:
         stock: int,
     ) -> Sample:
         """시료 등록. 중복 ID이면 DuplicateKeyError."""
+        if not id or not id.strip():
+            raise ValueError("시료 ID는 빈 문자열일 수 없습니다.")
+        if not name or not name.strip():
+            raise ValueError("시료 이름은 빈 문자열일 수 없습니다.")
         if not (0 < yield_rate <= 1.0):
             raise ValueError(f"수율은 0 초과 1 이하여야 합니다: {yield_rate}")
         if avg_production_time <= 0:

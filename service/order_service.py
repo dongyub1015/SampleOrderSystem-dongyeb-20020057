@@ -60,7 +60,12 @@ class OrderService:
 
         sample = self._sample_repo.find_by_id(order.sample_id)
 
-        if sample.stock >= order.quantity:
+        # CONFIRMED 상태 주문의 선점 수량을 제외한 가용 재고로 판단
+        confirmed = self._order_repo.find_by_status(OrderStatus.CONFIRMED)
+        reserved = sum(o.quantity for o in confirmed if o.sample_id == order.sample_id)
+        available = sample.stock - reserved
+
+        if available >= order.quantity:
             # 재고 충분 → CONFIRMED
             return self._order_repo.update_status(order_id, OrderStatus.CONFIRMED)
         else:

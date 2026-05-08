@@ -99,11 +99,19 @@ class OrderRepository:
         })
         return self._to_model(record)
 
+    def release(self, order_id: str, released_at: datetime) -> Order:
+        """RELEASE 전환 + 출고 시각 기록을 단일 쓰기로 원자적 처리."""
+        record = self._store.update(order_id, {
+            "status": OrderStatus.RELEASE.value,
+            "released_at": released_at.isoformat(),
+            "updated_at": datetime.now().isoformat(),
+        })
+        return self._to_model(record)
+
     def update_released_at(self, order_id: str, released_at: datetime) -> Order:
-        """출고 시각 기록."""
-        now = datetime.now()
+        """출고 시각 기록 (하위 호환용)."""
         record = self._store.update(order_id, {
             "released_at": released_at.isoformat(),
-            "updated_at": now.isoformat(),
+            "updated_at": datetime.now().isoformat(),
         })
         return self._to_model(record)

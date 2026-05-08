@@ -35,3 +35,6 @@ class SampleView:
     def print_search_result(self, samples: list, keyword: str) -> None:
         print(f"=== 검색 결과 (키워드: '{keyword}') ===")
         self.print_sample_list(samples)
+
+    def print_error(self, msg: str) -> None:
+        self._console.print_error(msg)
