@@ -1,0 +1,1 @@
+- [SampleOrderSystem Project Context](project_sample_order_system.md) — Phase 1~5 TDD 완료, DataPersistence 로컬 구현, Python 3.14.4

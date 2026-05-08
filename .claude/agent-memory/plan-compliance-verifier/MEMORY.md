@@ -1,0 +1,1 @@
+- [SampleOrderSystem 프로젝트 컨텍스트](project_context.md) — 구조, 검증 기준, 주요 위반 패턴 요약

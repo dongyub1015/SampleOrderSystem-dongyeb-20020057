@@ -34,7 +34,9 @@ python main.py
   |------|------|------|
   | `model/` | 도메인 상태, 유효성 검사 | `print()`, `input()`, 타계층 import |
   | `view/` | `print()` 출력만 | `input()`, model·controller import |
-  | `controller/` | `input()` 수신, 흐름 제어 | `print()` 직접 호출 |
+  | `controller/` | `input()` 수신, 흐름 제어, view 호출 | `print()` 직접 호출 |
+  | `service/` | 비즈니스 로직, repository 호출 | `print()`, `input()` |
+  | `repository/` | JsonDataStore CRUD 래핑 | `print()`, `input()`, service import |
   | `app.py` | 인스턴스 생성 + DI | 비즈니스 로직 |
 
 ### 2. 데이터 영속성 — `DataPersistence-dongyeb-20020057` (master 브랜치)
@@ -54,7 +56,7 @@ python main.py
 ### 3. 데이터 모니터링 Tool — `DataMonitor-dongyeb-20020057` (master 브랜치)
 > https://github.com/dongyub1015/DataMonitor-dongyeb-20020057
 
-- 모니터링 메뉴(`[4] 모니터링`)의 실시간 현황 출력에 DataMonitor의 TUI 위젯 또는 출력 패턴을 참조한다.
+- 모니터링 메뉴(`[4] 모니터링`)의 주문 현황·재고량 출력 형식에 DataMonitor의 TUI 위젯 또는 출력 패턴을 참조한다.
 - DataMonitor의 `DataSource` ABC를 참고해 `JsonDataStore` 기반 커스텀 소스를 구현한다.
 - 최소 터미널 크기 80×24를 준수한다.
 - 실행: `python -m datamonitor --config config.yaml` (모니터링 독립 실행 시)
@@ -71,7 +73,7 @@ python main.py
 
 ```
 main.py
-  └── app.py  (DI Root: 저장소 → 서비스 → 컨트롤러 생성 및 주입)
+  └── app.py  (DI Root: 저장소 → 서비스 → 뷰 → 컨트롤러 생성 및 주입)
         ├── model/         도메인 엔티티 + OrderStatus Enum
         ├── repository/    JsonDataStore 래핑 CRUD (ABC + 구현체)
         ├── service/       비즈니스 로직 (주문 승인 분기, 생산량 계산 등)

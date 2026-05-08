@@ -1,0 +1,1 @@
+- [SampleOrderSystem 프로젝트 개요](project_sample_order_system.md) — 문서 구성, 핵심 용어, 발견된 충돌 패턴 (2026-05-08 첫 검증 세션)
