@@ -14,10 +14,7 @@ class OrderController:
     def run(self) -> None:
         """주문 접수 서브 메뉴."""
         while True:
-            print("\n[시료 주문]")
-            print("  [1] 주문 접수")
-            print("  [2] 전체 주문 조회")
-            print("  [0] 뒤로")
+            self._view.print_order_menu()
             choice = input("선택 > ").strip()
             match choice:
                 case "1":
@@ -27,7 +24,7 @@ class OrderController:
                 case "0":
                     break
                 case _:
-                    print("[오류] 올바른 메뉴를 선택하세요.")
+                    self._view.print_error("올바른 메뉴를 선택하세요.")
 
     def place_order(self) -> None:
         sample_id = input("시료 ID > ").strip()
@@ -35,15 +32,15 @@ class OrderController:
         try:
             quantity = int(input("주문 수량 (ea) > ").strip())
         except ValueError:
-            print("[오류] 수량은 정수로 입력하세요.")
+            self._view.print_error("수량은 정수로 입력하세요.")
             return
         try:
             order = self._svc.place_order(sample_id, customer_name, quantity)
             self._view.print_order_placed(order)
         except RecordNotFoundError:
-            print(f"[오류] 존재하지 않는 시료 ID입니다: {sample_id}")
+            self._view.print_error(f"존재하지 않는 시료 ID입니다: {sample_id}")
         except Exception as e:
-            print(f"[오류] {e}")
+            self._view.print_error(str(e))
 
     def list_all_orders(self) -> None:
         orders = self._svc.list_all_orders()

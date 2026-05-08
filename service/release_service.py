@@ -29,9 +29,14 @@ class ReleaseService:
                 f"CONFIRMED 상태의 주문만 출고 가능합니다. 현재 상태: {order.status.value}"
             )
 
-        # 재고 차감
+        # 재고 차감 (음수 방지)
         sample = self._sample_repo.find_by_id(order.sample_id)
         new_stock = sample.stock - order.quantity
+        if new_stock < 0:
+            raise ValueError(
+                f"재고 부족으로 출고 불가합니다. "
+                f"현재 재고: {sample.stock} ea, 주문 수량: {order.quantity} ea"
+            )
         self._sample_repo.update_stock(order.sample_id, new_stock)
 
         # 상태 변경 및 출고 시각 기록

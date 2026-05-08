@@ -21,10 +21,7 @@ class MonitoringController:
     def run(self) -> None:
         """모니터링 서브 메뉴."""
         while True:
-            print("\n[모니터링]")
-            print("  [1] 주문 현황")
-            print("  [2] 재고 현황")
-            print("  [0] 뒤로")
+            self._view.print_monitoring_menu()
             choice = input("선택 > ").strip()
             match choice:
                 case "1":
@@ -34,7 +31,7 @@ class MonitoringController:
                 case "0":
                     break
                 case _:
-                    print("[오류] 올바른 메뉴를 선택하세요.")
+                    self._view.print_error("올바른 메뉴를 선택하세요.")
 
     def show_order_status(self) -> None:
         """REJECTED 제외 상태별 주문 현황 표시."""
@@ -53,14 +50,12 @@ class MonitoringController:
     def show_stock_status(self) -> None:
         """시료별 재고 및 pending 상태 표시."""
         samples = self._sample_svc.list_samples()
-        # pending_qty = RESERVED + PRODUCING 상태 주문의 합산 수량
         all_orders = self._order_svc.list_all_orders()
         pending_orders = [
             o for o in all_orders
             if o.status in (OrderStatus.RESERVED, OrderStatus.PRODUCING)
         ]
 
-        # 시료별 pending 수량 집계
         pending_by_sample: dict[str, int] = {}
         for order in pending_orders:
             pending_by_sample[order.sample_id] = (

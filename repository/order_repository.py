@@ -17,6 +17,18 @@ class OrderRepository:
     def __init__(self, file_path: str = "data/orders.json"):
         self._store = JsonDataStore(file_path)
         self._daily_counter: dict[str, int] = {}  # key: YYYYMMDD, value: 마지막 일련번호
+        self._restore_counter()
+
+    def _restore_counter(self) -> None:
+        """재시작 시 기존 주문에서 일련번호 최댓값을 복원."""
+        import re
+        for record in self._store.read_all():
+            m = re.match(r"ORD-(\d{8})-(\d{4})", record.get("order_id", ""))
+            if m:
+                date_str, seq = m.group(1), int(m.group(2))
+                self._daily_counter[date_str] = max(
+                    self._daily_counter.get(date_str, 0), seq
+                )
 
     def _to_model(self, record: dict) -> Order:
         return Order(

@@ -18,6 +18,12 @@ class SampleService:
         stock: int,
     ) -> Sample:
         """시료 등록. 중복 ID이면 DuplicateKeyError."""
+        if not (0 < yield_rate <= 1.0):
+            raise ValueError(f"수율은 0 초과 1 이하여야 합니다: {yield_rate}")
+        if avg_production_time <= 0:
+            raise ValueError(f"평균 생산시간은 0 초과여야 합니다: {avg_production_time}")
+        if stock < 0:
+            raise ValueError(f"재고는 0 이상이어야 합니다: {stock}")
         sample = Sample(
             id=id,
             name=name,

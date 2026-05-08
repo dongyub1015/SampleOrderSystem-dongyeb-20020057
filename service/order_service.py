@@ -28,12 +28,10 @@ class OrderService:
             RecordNotFoundError: 시료 ID가 존재하지 않을 때
             ValueError: 수량이 1 미만일 때
         """
-        # 시료 존재 확인 (없으면 RecordNotFoundError)
-        self._sample_repo.find_by_id(sample_id)
-
         if quantity < 1:
             raise ValueError("주문 수량은 1 이상이어야 합니다.")
 
+        # 시료 존재 확인 (없으면 RecordNotFoundError)
         sample = self._sample_repo.find_by_id(sample_id)
         order_id = self._order_repo.generate_order_id()
         now = datetime.now()

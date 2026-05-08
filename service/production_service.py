@@ -1,6 +1,6 @@
 """ProductionService — 생산 라인 비즈니스 로직."""
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import ceil
 from typing import Optional
 
@@ -34,6 +34,24 @@ class ProductionService:
         """총 생산 시간 = 평균 생산시간 * 실 생산량."""
         return avg_production_time * actual_qty
 
+    def _calculate_estimated_finish(self, total_time_min: float, now: datetime) -> datetime:
+        """새 작업의 예상 완료 시각 계산.
+
+        실행 중 작업이 없으면 now + own_time.
+        있으면 running.estimated_finish + 대기 중 작업 합산 + own_time.
+        """
+        running = self._prod_repo.find_running()
+        waiting = self._prod_repo.find_waiting()
+
+        if running is None:
+            return now + timedelta(minutes=total_time_min)
+
+        base_time = running.estimated_finish or (
+            (running.started_at or now) + timedelta(minutes=running.total_time_min)
+        )
+        waiting_total = sum(j.total_time_min for j in waiting)
+        return base_time + timedelta(minutes=waiting_total + total_time_min)
+
     def create_production_job(self, order: Order) -> ProductionJob:
         """주문에 대한 생산 작업 생성 및 큐 등록."""
         sample = self._sample_repo.find_by_id(order.sample_id)
@@ -42,8 +60,9 @@ class ProductionService:
         total_time_min = self.calculate_total_time(sample.avg_production_time, actual_qty)
 
         now = datetime.now()
-        # 현재 실행 중인 작업이 없으면 즉시 실행 상태로 등록
         is_first = self._prod_repo.find_running() is None
+        estimated_finish = self._calculate_estimated_finish(total_time_min, now)
+
         job = ProductionJob(
             job_id=f"JOB-{uuid.uuid4().hex[:8].upper()}",
             order_id=order.order_id,
@@ -55,7 +74,7 @@ class ProductionService:
             total_time_min=total_time_min,
             enqueued_at=now,
             started_at=now if is_first else None,
-            estimated_finish=None,
+            estimated_finish=estimated_finish,
             is_running=is_first,
         )
         self._prod_repo.enqueue(job)
@@ -66,19 +85,18 @@ class ProductionService:
         job = self._prod_repo.find_by_order_id(order_id)
         if job is None:
             raise ValueError(f"No production job found for order {order_id}")
+        if not job.is_running:
+            raise ValueError(f"해당 작업은 현재 실행 중이 아닙니다: {order_id}")
 
-        # 재고 반영
+        # 재고 반영 (actual_qty >= shortage 이므로 stock >= quantity 보장)
         sample = self._sample_repo.find_by_id(job.sample_id)
-        new_stock = sample.stock + job.actual_qty
-        self._sample_repo.update_stock(job.sample_id, new_stock)
+        self._sample_repo.update_stock(job.sample_id, sample.stock + job.actual_qty)
 
         # 주문 상태 변경
         updated_order = self._order_repo.update_status(order_id, OrderStatus.CONFIRMED)
 
-        # 완료된 작업 제거
+        # 완료된 작업 제거 후 다음 작업 시작
         self._prod_repo.complete_job(job.job_id)
-
-        # 대기 중인 다음 작업 시작
         waiting = self._prod_repo.find_waiting()
         if waiting:
             self._prod_repo.mark_running(waiting[0].job_id, datetime.now())
